@@ -39,8 +39,7 @@ Vosk модель RU (например vosk-model-small-ru-0.22) — распа�
 Ключ Mistral API (для анализа)
 
 Шаги
-bash
-Copy code
+
 git clone https://github.com/<username>/<repo>.git
 cd <repo>
 
@@ -67,8 +66,7 @@ MISTRAL_API_KEY=sk-xxxxxxxxxxxxxxxx
 Скачайте vosk-model-small-ru-0.22, распакуйте и пропишите путь в VOSK_MODEL.
 
 ▶️ Запуск
-bash
-Copy code
+
 python app.py
 # откройте http://127.0.0.1:8000
 🧭 UI/Endpoints
