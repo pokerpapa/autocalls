@@ -1,0 +1,284 @@
+<!-- templates/upload.html -->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoCalls — Проверка звонков</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --primary:   #003366;
+      --accent:    #ff7f00;
+      --bg-light:  #f8f9fa;
+      --card-bg:   #ffffff;
+      --text-dark: #1a1a1a;
+    }
+    body {
+      background: var(--bg-light);
+      color: var(--text-dark);
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .navbar { background: var(--card-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .navbar-brand { color: var(--primary)!important; font-weight: bold; }
+    .nav-link { color: var(--text-dark)!important; }
+    .nav-link:hover { color: var(--accent)!important; }
+
+    .hero {
+      background: var(--card-bg);
+      text-align: center;
+      padding: 2.5rem 1rem;
+      margin-bottom: 2rem;
+    }
+    .hero-content img { max-height: 80px; margin-bottom: 1rem; }
+    .hero-content h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .file-card {
+      background: var(--card-bg);
+      border-radius: .5rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      transition: transform .2s;
+    }
+    .file-card:hover { transform: translateY(-3px); }
+    .file-card .card-title { font-weight: 600; display: flex; align-items: center; }
+    .file-card .card-title i { color: var(--accent); margin-right: .5rem; }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .btn-primary:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .result-pre {
+      background: #eef3f8;
+      padding: 1rem;
+      border-radius: .5rem;
+      font-family: Consolas, monospace;
+    }
+
+    .spinner-container { text-align: center; margin: 1rem 0; }
+    .spinner-container i { font-size: 2rem; color: var(--accent); }
+    .spinner-msg { margin-top: .5rem; font-style: italic; color: #555; }
+  </style>
+</head>
+<body>
+
+  <!-- Навигация -->
+<nav class="navbar navbar-expand-lg">
+  <div class="container">
+    <a class="navbar-brand" href="{{ url_for('index') }}">
+      <i class="fas fa-car-side me-2"></i>AutoCalls
+    </a>
+    <ul class="navbar-nav ms-auto">
+      <li class="nav-item">
+        <!-- Добавили target="_blank" для открытия в новой вкладке -->
+        <a class="nav-link" href="{{ url_for('list_jobs') }}" target="_blank" rel="noopener">
+          <i class="fas fa-history me-1"></i>История отчётов
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+
+  <!-- Герой‑секция с логотипом и заголовком -->
+  <section class="hero">
+    <div class="hero-content">
+      <img src="{{ url_for('static', filename='garant.jpg') }}" alt="Гарант‑Моторс">
+      <h1>Автоматизированная проверка звонков</h1>
+    </div>
+  </section>
+
+  <div class="container">
+
+    <!-- Форма -->
+    <div class="card shadow-sm mb-5">
+      <div class="card-body">
+        <h2 class="h5 mb-4 text-primary">
+          <i class="fas fa-upload me-2"></i>Загрузка звонков
+        </h2>
+        <form id="uploadForm">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label for="managerSelect" class="form-label">
+                <i class="fas fa-user-tie me-1"></i>Менеджер
+              </label>
+              <select id="managerSelect" name="manager" class="form-select" required>
+                <option value="" disabled selected>Выберите менеджера</option>
+                {% for m in managers %}
+                <option value="{{ m }}">{{ m }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-8">
+              <label for="audioFiles" class="form-label">
+                <i class="fas fa-file-audio me-1"></i>Аудио (MP3), до 10 файлов
+              </label>
+              <input id="audioFiles"
+                     type="file"
+                     class="form-control"
+                     name="audio"
+                     accept=".mp3"
+                     multiple
+                     required>
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-play-circle me-1"></i>Проверить
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Карточки результатов -->
+    <div id="resultsContainer"></div>
+  </div>
+
+  <!-- Скрипт -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const messages = [
+  "Пока мы проверяем звонки, почему бы не выпить чашечку эспрессо ☕️?",
+  "Этот момент лучше посвятить разминке — полезно после сидячей работы! 🤸‍♂️",
+  "Знаете ли вы, что первый автомобиль был изобретён в 1886 году Карлом Бенцем? 🚗",
+  "Почитайте новости автоспорта — начинается новый сезон Формулы 1! 🏎",
+  "Отлейте себе воды и растянитесь — это лучше, чем делать вручную! 💧",
+  "Кстати, лампа на приборной панели может означать до 50 разных ошибок! 💡",
+  "Сделайте вдох-выдох и вспомните свой первый автомобиль. Ностальгия гудит! 🚙",
+  "Интересный факт: самый быстрый серийный автомобиль разгоняется до 100 км/ч за 1.6 с! ⚡️",
+  "Проверьте уровень масла в своём авто при следующей возможности — это проще, чем кажется! 🛢",
+  "Пока мы в AI мире, вспомните, когда в последний раз меняли фильтр салона? 🌬",
+  "Автомобили расходят те же дороги, что и мы — улыбнитесь! 😊",
+  "Знаете ли вы, что колёса появились задумчиво из деревянных колёсниц? 🪵",
+  "Подыщите в телефоне фото своего авто и вспомните лучшие поездки. 📸",
+  "Лучше выпустить пар: сделайте пару приседаний! 🏋️‍♀️",
+  "Кстати, прототип Tesla Roadster был построен из Lotus Elise ⚡️",
+  "Возьмите стакан воды — всегда полезно при работе за компом! 💦",
+  "Знаете ли вы, что цвет автомобиля влияет на расход топлива? 🎨",
+  "Пока AI рубит звонки, вы сможете закончить утренние дела! 🧹",
+  "Факт: первая электрическая машина появилась в 1832 г.! 🔋",
+  "Отправьте другу мем про автомобили — пора немного посмеяться! 😂",
+  "Проверьте давление в шинах в следующий раз — это быстро и важно! 🔧",
+  "Авто‑любители говорят: хороший звук двигателя — музыка для ушей! 🎶",
+  "За это время можно составить список дел на день. 📝",
+  "Интересно: самый длинный автомобиль был длиной 30 м! 🚚",
+  "Смените позу и распрямите спину — здоровье важнее всего. 🧘‍♂️",
+  "Вы когда‑нибудь видели машину ― амфибию? Это реально существует! 🛥🚗",
+  "Поработайте глазными упражнениями — важно для долгого экрана. 👀",
+  "Ламповый факт: первая зарядка электромобилей была от фонарных столбов! 🔌",
+  "Проверьте погоду на выходные — планируйте тест‑драйв! ☀️",
+  "Быстрый факт: Mercedes выпускает модели уже 130 лет! 🎂",
+  "Время пересмотреть фото со своего последнего автопутешествия. 🌄",
+  "Подумайте, какой автомобиль мечты вы бы купили первым. 🚘",
+  "Во время ожидания можно спланировать маршрут следующей поездки. 🗺",
+  "Знаете ли вы, что рекорд дальности пробега без дозаправки — 3866 км? ⛽️",
+  "Проверьте наушники — пусть фоновые звуки не отвлекают! 🎧",
+  "Автомобиль вашего детства: какое это было авто? 🧒",
+  "Сделайте пару махов руками — кровь должна циркулировать! 💪",
+  "Пока AI подсчитывает слова, вспомните свой любимый автосалон. 🏢",
+  "Факт для знатоков: Bugatti Veyron имела запас хода 376 км! 💨",
+  "Загляните в календарь — может пора план техобслуживания? 📆",
+  "Это время лучше потратить на полезный перекус. 🍎",
+  "Кстати, в Японии есть музей аварийных машин! 🎖",
+  "Авто‑энциклопедия: первый турбодвигатель был в 1962 г. 🌀",
+  "Слушаете музыку? Сделайте паузу и послушайте тишину. 🤫",
+  "Пока мы считаем секции, можно почитать забавный факт про пневматику. 🎈",
+  "Сделайте глубокий вдох и улыбнитесь — AI любит радость! 😄",
+  "Знаете ли вы, что светоотражатели на знаках помогают экономить энергию? 🚦"
+];
+
+    function pickMsg(){ return messages[Math.floor(Math.random()*messages.length)]; }
+
+    let processing = false;
+    const form = document.getElementById('uploadForm');
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const mgr   = document.getElementById('managerSelect').value;
+      const files = document.getElementById('audioFiles').files;
+      if (!mgr || files.length===0) return;
+      if (files.length>10) return alert('Максимум 10 файлов');
+
+      const container = document.getElementById('resultsContainer');
+      container.innerHTML = '';
+
+      const cards = Array.from(files).map(file => {
+        const card = document.createElement('div');
+        card.className = 'card file-card mb-3';
+        card.innerHTML = `
+          <div class="card-body">
+            <h5 class="card-title">
+              <i class="fas fa-file-audio me-1"></i>${file.name}
+            </h5>
+            <p class="file-status text-muted">Готов к обработке</p>
+            <div class="spinner-container">
+              <i class="fas fa-cog fa-spin"></i>
+              <p class="spinner-msg">${pickMsg()}</p>
+            </div>
+            <pre class="result-pre">Ожидание...</pre>
+          </div>
+        `;
+        container.append(card);
+        return {
+          file,
+          manager:     mgr,
+          statusElem:  card.querySelector('.file-status'),
+          spinnerMsg:  card.querySelector('.spinner-msg'),
+          resultPre:   card.querySelector('.result-pre')
+        };
+      });
+
+      processing = true;
+      for (let i=0; i<cards.length; i++){
+        const c = cards[i];
+        c.statusElem.textContent = `Обработка ${i+1} из ${cards.length}…`;
+        let iv = setInterval(()=>{ c.spinnerMsg.textContent = pickMsg(); }, 3000);
+        await uploadSingle(c);
+        clearInterval(iv);
+        c.statusElem.textContent = `Готово (${i+1}/${cards.length})`;
+      }
+      processing = false;
+    });
+
+    function uploadSingle({file, manager, resultPre}){
+      return new Promise(resolve=>{
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST','/api/process',true);
+        xhr.onload = ()=>{
+          const d = JSON.parse(xhr.responseText||'{}');
+          if (xhr.status===200 && d.download_url){
+            resultPre.innerHTML = `<a href="${d.download_url}" target="_blank">
+              <i class="fas fa-download me-1"></i>Скачать отчёт</a>`;
+          } else {
+            resultPre.textContent = d.error||xhr.statusText||'Ошибка';
+          }
+          resolve();
+        };
+        xhr.onerror = ()=>{ resultPre.textContent='Сетевая ошибка'; resolve(); };
+
+        const fd = new FormData();
+        fd.append('manager', manager);
+        fd.append('audio',   file);
+        xhr.send(fd);
+      });
+    }
+
+    window.addEventListener('beforeunload', e=>{
+      if (processing) e.returnValue = 'Идёт обработка. Уверены?';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# venv & env
+.venv/
+.env
+
+# flask instance data
+instance/uploads/
+instance/results/
+
+# models (весит много) — держим только README в папке models/
+models/
+!models/README.md
+
+# caches / logs
+__pycache__/
+*.py[cod]
+*.log
